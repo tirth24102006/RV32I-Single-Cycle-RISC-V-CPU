@@ -1,10 +1,16 @@
+RV32I Single-Cycle RISC-V CPU 
+
+A minimal single-cycle 32-bit RISC-V (RV32I) CPU built from scratch in Verilog HDL, executing ADD and ADDI. Fully modular datapath — PC, instruction memory, register file, ALU, control unit, ALU control, immediate generator, and ALU-source mux — each with its own testbench, simulated in Icarus Verilog and visualized in GTKWave & Vivado. 🚀
+
+---
+
 # 🧠 RV32I Single-Cycle RISC-V CPU (ADD / ADDI Subset)
 
 ### Built from scratch in Verilog HDL
 
 > ⚙️ A fully modular, single-cycle 32-bit RISC-V processor, hand-built in Verilog HDL from the ground up — implementing the `ADD` and `ADDI` instructions from the RV32I base integer instruction set. Every stage of the classic **Fetch → Decode → Execute → Write-Back** pipeline is broken into its own clean, independently testable module. Simulated with Icarus Verilog, inspected in GTKWave, and synthesizable in Xilinx Vivado. 🚀
 
-> 🔨 **Status:** Actively in progress — the core currently supports `ADD`/`ADDI` and is fully verified. More of the RV32I instruction set (branches, loads/stores, remaining ALU ops) is being added incrementally. See the [roadmap](#12--current-limitations--roadmap) below.
+> 🔨 **Status:** Actively in progress — the core currently supports `ADD`/`ADDI` and is fully verified. More of the RV32I instruction set (branches, loads/stores, remaining ALU ops) is being added incrementally. See the [roadmap](#13--current-limitations--roadmap) below.
 
 ---
 
@@ -14,17 +20,18 @@
 2. [RISC-V, RISC vs CISC, and RV32I](#2--risc-v-risc-vs-cisc-and-rv32i)
 3. [Instruction Encoding — R-type & I-type](#3--instruction-encoding--r-type--i-type)
 4. [How the Single-Cycle Pipeline Works](#4--how-the-single-cycle-pipeline-works)
-5. [Project Structure (File Hierarchy)](#5--project-structure-file-hierarchy)
-6. [Module-by-Module Breakdown](#6--module-by-module-breakdown)
-7. [Test Program Used for Verification](#7--test-program-used-for-verification)
-8. [How to Download This Project](#8--how-to-download-this-project)
-9. [How to Run on Windows](#9--how-to-run-on-windows)
-10. [How to Run on macOS / Linux](#10--how-to-run-on-macos--linux)
-11. [Sample Simulation Output](#11--sample-simulation-output)
-12. [Current Limitations & Roadmap](#12--current-limitations--roadmap)
-13. [Key Design Decisions](#13--key-design-decisions)
-14. [Author](#14--author)
-15. [License](#15--license)
+5. [How the Whole CPU Works — End-to-End Walkthrough](#5--how-the-whole-cpu-works--end-to-end-walkthrough)
+6. [Project Structure (File Hierarchy)](#6--project-structure-file-hierarchy)
+7. [Module-by-Module Breakdown](#7--module-by-module-breakdown)
+8. [Test Program Used for Verification](#8--test-program-used-for-verification)
+9. [How to Download This Project](#9--how-to-download-this-project)
+10. [How to Run on Windows](#10--how-to-run-on-windows)
+11. [How to Run on macOS / Linux](#11--how-to-run-on-macos--linux)
+12. [Sample Simulation Output](#12--sample-simulation-output)
+13. [Current Limitations & Roadmap](#13--current-limitations--roadmap)
+14. [Key Design Decisions](#14--key-design-decisions)
+15. [Author](#15--author)
+16. [License](#16--license)
 
 ---
 
@@ -150,7 +157,55 @@ A single control bit reroutes one wire — the rest of the datapath doesn't need
 
 ---
 
-## 5. 📁 Project Structure (File Hierarchy)
+## 5. 🧩 How the Whole CPU Works — End-to-End Walkthrough
+
+This section ties every module together by tracing **one real instruction, all the way through the hardware**, then zooming out to show how all 5 instructions of the test program run back-to-back.
+
+### 🔬 Tracing a single instruction: `add x3, x1, x2`
+
+Assume `x1 = 5` and `x2 = 10` already sit in the register file (from the two `ADDI`s that ran before this one). Here is exactly what happens, module by module, in the one clock cycle this instruction takes to execute:
+
+| Step | Module involved | What happens |
+|---|---|---|
+| ① | `pc_reg` | `pc_out = 8` (this is the 3rd instruction — byte address `8`, since each instruction is 4 bytes) |
+| ② | `instr_mem` | `pc_addr[31:2]` = word index `2` → returns `mem[2] = 0x002081B3` on the `instruction` wire |
+| ③ | Bit-slicing (inside `riscv_core`) | `opcode = 0110011`, `rd = 00011` (x3), `funct3 = 000`, `rs1 = 00001` (x1), `rs2 = 00010` (x2), `funct7 = 0000000` |
+| ④ | `control_unit` | Sees `opcode = 0110011` → outputs `RegWrite = 1`, `ALUSrc = 0` |
+| ⑤ | `alu_control` | Sees `opcode = 0110011`, `funct3 = 000`, `funct7 = 0000000` → outputs `alu_opcode = 000` (ADD) |
+| ⑥ | `register_file` | Reads `rs1 = x1` → `read_data1 = 5`; reads `rs2 = x2` → `read_data2 = 10` |
+| ⑦ | `imm_gen` | Also computes an immediate in parallel (`imm_out` = some value) — but it's irrelevant here, since... |
+| ⑧ | `alu_src_mux` | `ALUSrc = 0` → passes `read_data2` (10) through as `operand2`, ignoring `imm_out` entirely |
+| ⑨ | `alu` | Computes `operand1 + operand2` = `5 + 10` = **`15`**, using `alu_opcode = 000` (ADD) |
+| ⑩ | `register_file` (write-back) | Because `RegWrite = 1`, on this same clock edge, `x3` is written with `alu_result = 15` |
+| ⑪ | `pc_reg` | On the same clock edge, `pc_out` becomes `12`, pointing at the 4th instruction next |
+
+**All eleven of those steps happen within a single clock cycle** — that's the entire point of a single-cycle design. Nothing here waits for a second clock edge; the moment the clock ticks, the whole chain above has already settled combinationally, and only `pc_reg`/`register_file` actually latch new values on that edge.
+
+### 🎬 Running the full 5-instruction program, cycle by cycle
+
+| Cycle | `pc_out` | Instruction fetched | What it does | Registers after this cycle |
+|---|---|---|---|---|
+| 1 | `0`  | `addi x1, x0, 5`  | `x1 = 0 + 5`   | `x1=5` |
+| 2 | `4`  | `addi x2, x0, 10` | `x2 = 0 + 10`  | `x1=5, x2=10` |
+| 3 | `8`  | `add  x3, x1, x2` | `x3 = 5 + 10`  | `x1=5, x2=10, x3=15` |
+| 4 | `12` | `addi x4, x3, -3` | `x4 = 15 + (-3)` | `x1=5, x2=10, x3=15, x4=12` |
+| 5 | `16` | `add  x5, x4, x4` | `x5 = 12 + 12` | `x1=5, x2=10, x3=15, x4=12, x5=24` |
+
+Notice how **`x1` = `x0 + 5` uses the exact same hardware path as `x3` = `x1 + x2`** — the only thing that changes cycle to cycle is which bits happen to be sitting in the instruction word, which flip `ALUSrc`, change which registers get read, and change what gets written where. There is no special-case circuitry for "the first instruction" or "a constant-loading instruction" — `x0` being hardwired to zero is what lets `ADDI` double as a way to load constants, entirely for free.
+
+### 🗺️ The big picture
+
+Zooming all the way out, the whole CPU is really just **one combinational chain (fetch → decode → read → execute) sitting between two clocked memories** (`pc_reg` and `register_file`). Every cycle:
+
+1. The two clocked elements present their *current* state (`pc_out`, and whatever's in the registers).
+2. Everything in between computes new values from that state, combinationally, with no memory of its own.
+3. On the next clock edge, the two clocked elements latch the *new* state (`pc_out + 4`, and the ALU's result into `rd`) — and the whole process repeats for the next instruction.
+
+That's the entire mental model for a single-cycle CPU: **state lives only in `pc_reg` and `register_file`; everything else is just wires and logic gates recomputing an answer from scratch every cycle.**
+
+---
+
+## 6. 📁 Project Structure (File Hierarchy)
 
 ```
 riscv-single-cycle-cpu/
@@ -191,7 +246,7 @@ riscv-single-cycle-cpu/
 
 ---
 
-## 6. 📂 Module-by-Module Breakdown
+## 7. 📂 Module-by-Module Breakdown
 
 ### `pc_reg.v` — Program Counter
 
@@ -333,7 +388,7 @@ Generates the clock, pulses reset, hand-loads a 5-instruction test program direc
 
 ---
 
-## 7. 🧪 Test Program Used for Verification
+## 8. 🧪 Test Program Used for Verification
 
 ```asm
 addi x1, x0, 5      # x1 = 5
@@ -355,7 +410,7 @@ Exercises basic `ADDI`, register-to-register `ADD`, chained data dependencies (x
 
 ---
 
-## 8. 📥 How to Download This Project
+## 9. 📥 How to Download This Project
 
 1. Go to the repository's GitHub page.
 2. Click the green **`<> Code`** button near the top right.
@@ -371,7 +426,7 @@ cd riscv-single-cycle-cpu
 
 ---
 
-## 9. 🪟 How to Run on Windows
+## 10. 🪟 How to Run on Windows
 
 ### Step 1 — Install VS Code
 
@@ -442,7 +497,7 @@ This opens the GTKWave window. In the **SST** panel on the left, click `tb_riscv
 
 ---
 
-## 10. 🐧🍎 How to Run on macOS / Linux
+## 11. 🐧🍎 How to Run on macOS / Linux
 
 **Install (Ubuntu/Debian):**
 ```bash
@@ -464,7 +519,7 @@ gtkwave dump.vcd
 
 ---
 
-## 11. 🖥️ Sample Simulation Output
+## 12. 🖥️ Sample Simulation Output
 
 ```
 ---- Final Register Values ----
@@ -479,7 +534,7 @@ x5 = 24 (expected 24)
 
 ---
 
-## 12. 🚧 Current Limitations & Roadmap
+## 13. 🚧 Current Limitations & Roadmap
 
 This project is a **deliberately minimal starting point** and is **still being actively extended**. Planned next steps:
 
@@ -492,7 +547,7 @@ This project is a **deliberately minimal starting point** and is **still being a
 
 ---
 
-## 13. 🔑 Key Design Decisions
+## 14. 🔑 Key Design Decisions
 
 **Single-cycle instead of a shared-bus multi-cycle design.** Matches how RV32I's fixed-length, cleanly-fielded format is meant to be used — every instruction fully executes in one clock edge, with no bus arbitration needed.
 
@@ -506,7 +561,7 @@ This project is a **deliberately minimal starting point** and is **still being a
 
 ---
 
-## 14. 👤 Author
+## 15. 👤 Author
 
 Built module-by-module, bug-by-bug, from a blank file to a working RISC-V core — every line reviewed, debugged, and understood along the way rather than copy-pasted. 🛠️
 
@@ -514,8 +569,7 @@ Feel free to fork, ⭐ star, and extend this with more of the RV32I instruction 
 
 ---
 
-## 15. 📄 License
+## 16. 📄 License
 
 MIT License — free to use, modify, and distribute with attribution.
-
 
