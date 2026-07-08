@@ -1,0 +1,23 @@
+module register_file(read_data1,read_data2,write_data,rd,rs1,rs2,RegWrite,rst,clk);
+input clk,rst,RegWrite;
+input [4:0] rd,rs1,rs2;
+output [31:0] read_data1,read_data2;
+input [31:0] write_data;
+reg [31:0] Reg [0:31];
+integer i;
+always @ (posedge clk) begin
+        if (rst) begin 
+                for(i = 0; i < 32 ; i = i + 1) begin
+                        Reg[i] <= 32'b0;
+                end
+        end else begin
+                if (RegWrite) begin
+                        Reg[rd] <= write_data;
+                end else begin
+                        Reg[rd] <= Reg[rd];
+                end
+        end
+end
+assign read_data1 = (rs1 == 5'b0) ? 32'b0 : Reg[rs1];
+assign read_data2 = (rs2 == 5'b0) ? 32'b0 : Reg[rs2];
+endmodule

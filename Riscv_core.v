@@ -1,0 +1,24 @@
+module riscv_core(pc_out,rst,clk);
+input rst,clk;
+output [31:0] pc_out;
+wire [4:0] rd,rs1,rs2;
+wire RegWrite,ALUsrc;
+wire [6:0] opcode,funct7;
+wire [2:0] alu_opcode,funct3;
+wire [31:0] read_data1,read_data2,w1,imm_out,operand2,alu_result,instr;
+pc_reg A1 (w1,rst,clk);
+instr_mem A2 (instr,w1);
+assign opcode = instr[6:0];
+assign rd = instr[11:7];
+assign funct3 = instr[14:12];
+assign rs1 = instr[19:15];
+assign rs2 = instr[24:20];
+assign funct7 = instr[31:25];
+assign pc_out = w1;
+imm_gen A3 (imm_out,instr);
+control_unit A4 (RegWrite,ALUsrc,opcode);
+register_file A5 (read_data1,read_data2,alu_result,rd,rs1,rs2,RegWrite,rst,clk);
+alu_src_mux A6 (operand2,imm_out,read_data2,ALUsrc);
+alu_control A7 (alu_opcode,funct3,funct7,opcode);
+ALU_RISCV A8 (alu_result,read_data1,operand2,alu_opcode);
+endmodule
