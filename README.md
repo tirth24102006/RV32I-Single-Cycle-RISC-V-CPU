@@ -237,12 +237,13 @@ riscv-single-cycle-cpu/
 ├── riscv_core.v            # 🔝 Top-level module — wires all 8 modules above together
 ├── tb_riscv_core.v         # 🔝 Full-system testbench — loads a program, checks results
 │
-├── schematic.png           # Full datapath schematic / block diagram
+├── schematic.pdf           # Full datapath schematic / block diagram
 ├── io_wave.png             # Exported waveform screenshot from GTKWave
+├── console.png             # Terminal/console output screenshot from simulation
 └── dump.vcd                # Waveform dump, generated after running any testbench
 ```
 
-**Total: 21 files** — 9 core modules + 9 matching testbenches (18 files) + 3 supporting artifacts.
+**Total: 22 files** — 9 core modules + 9 matching testbenches (18 files) + 4 supporting artifacts.
 
 ---
 
@@ -530,7 +531,7 @@ x4 = 12 (expected 12)
 x5 = 24 (expected 24)
 ```
 
-📸 See `io_wave.png` for the corresponding GTKWave waveform screenshot, and `schematic.png` for the full block-level datapath diagram.
+📸 See `console.png` for the terminal output shown above as an actual screenshot, `io_wave.png` for the corresponding GTKWave waveform, and `schematic.pdf` for the full block-level datapath diagram.
 
 ---
 
