@@ -126,7 +126,7 @@ Unlike a shared-bus, multi-cycle design, this CPU executes **one full instructio
 
 ```
 ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│      PC      │───▶│  Instr Mem   │───▶│   Decoder    │───▶│   Reg File   │───▶│     ALU      │
+│      PC      │──▶│  Instr Mem    │──▶│   Decoder    │──▶│   Reg File   │──▶ │     ALU      │
 └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
                                                                                         │ write-back
                                                                     ┐───────────────────┘
