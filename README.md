@@ -146,7 +146,7 @@ Unlike a shared-bus, multi-cycle design, this CPU executes **one full instructio
 
 ```
 ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│      PC      │───▶│  Instr Mem   │───▶│   Decoder    │───▶│   Reg File   │───▶│     ALU      │
+│      PC      │──▶│  Instr Mem   │───▶│   Decoder    │──▶│   Reg File   │───▶│     ALU      │
 └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
                                                                                         │ write-back
                                                                     ┐───────────────────┘
@@ -295,7 +295,7 @@ riscv-single-cycle-cpu/
 │
 ├── schematic.pdf           # Full datapath schematic / block diagram
 ├── io_wave.png             # Exported waveform screenshot from GTKWave
-├── console.png             # Terminal/console output screenshot from simulation
+├── console.pdf             # Terminal/console output screenshots from simulation
 └── dump.vcd                # Waveform dump, generated after running any testbench
 ```
 
