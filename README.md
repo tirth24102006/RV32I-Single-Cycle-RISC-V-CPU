@@ -8,7 +8,7 @@ A minimal single-cycle 32-bit RISC-V (RV32I) CPU built from scratch in Verilog H
 
 > ⚙️ A fully modular, single-cycle 32-bit RISC-V processor, hand-built in Verilog HDL from the ground up — implementing 9 core ALU operations from the RV32I base integer instruction set, in both R-type and I-type form. Verified by a **self-checking testbench** with a live instruction-memory interface and a debug address-override port, rather than a one-shot "load a program and eyeball the final registers" test. Simulated with Icarus Verilog, inspected in GTKWave, and synthesizable in Xilinx Vivado. 🚀
 
-> ✅ **Status:** Feature-complete for its scope. All 9 ALU operations (R-type + I-type), the register file, the full single-cycle datapath, and a 25-step self-checking regression suite are implemented and passing. `SRA`/`SRAI`, loads/stores, real branch/jump instructions, and pipelining are deliberately out of scope for this version — see [Roadmap](#16--current-limitations--roadmap).
+> ✅ **Status:** Feature-complete for its scope. All 9 ALU operations (R-type + I-type), the register file, the full single-cycle datapath, and a 25-step self-checking regression suite are implemented and passing. `SRA`/`SRAI`, loads/stores, real branch/jump instructions, and pipelining are deliberately out of scope for this version — see [Roadmap](#17--current-limitations--roadmap).
 
 ---
 
@@ -22,18 +22,19 @@ A minimal single-cycle 32-bit RISC-V (RV32I) CPU built from scratch in Verilog H
 6. [How the Whole CPU Works — End-to-End Walkthrough](#6--how-the-whole-cpu-works--end-to-end-walkthrough)
 7. [Project Structure (File Hierarchy)](#7--project-structure-file-hierarchy)
 8. [Module-by-Module Breakdown](#8--module-by-module-breakdown)
-9. [Verification Program — All 25 Test Steps](#9--verification-program--all-25-test-steps)
-10. [How to Download This Project](#10--how-to-download-this-project)
-11. [How to Run on Windows](#11--how-to-run-on-windows)
-12. [How to Run on macOS / Linux](#12--how-to-run-on-macos--linux)
-13. [Sample Simulation Output](#13--sample-simulation-output)
-14. [Debugging Journey — Bugs Found & Fixed](#14--debugging-journey--bugs-found--fixed)
-15. [Verilog Concepts Reference](#15--verilog-concepts-reference)
-16. [Current Limitations & Roadmap](#16--current-limitations--roadmap)
-17. [Key Design Decisions](#17--key-design-decisions)
-18. [Glossary of Terms](#18--glossary-of-terms)
-19. [Author](#19--author)
-20. [License](#20--license)
+9. [Testbenches — Self-Checking Suite & Standalone Unit Tests](#9--testbenches--self-checking-suite--standalone-unit-tests)
+10. [Verification Program — All 25 Test Steps](#10--verification-program--all-25-test-steps)
+11. [How to Download This Project](#11--how-to-download-this-project)
+12. [How to Run on Windows](#12--how-to-run-on-windows)
+13. [How to Run on macOS / Linux](#13--how-to-run-on-macos--linux)
+14. [Sample Simulation Output](#14--sample-simulation-output)
+15. [Debugging Journey — Bugs Found & Fixed](#15--debugging-journey--bugs-found--fixed)
+16. [Verilog Concepts Reference](#16--verilog-concepts-reference)
+17. [Current Limitations & Roadmap](#17--current-limitations--roadmap)
+18. [Key Design Decisions](#18--key-design-decisions)
+19. [Glossary of Terms](#19--glossary-of-terms)
+20. [Author](#20--author)
+21. [License](#21--license)
 
 ---
 
@@ -136,7 +137,7 @@ Every RISC-V instruction is a fixed **32 bits wide**. Every instruction this cor
 
 > 🧾 **Sign extension:** the 12-bit `imm[11:0]` field is extended to 32 bits by replicating bit `[31]` of the instruction across bits `[31:12]` — implemented as `{{20{instruction[31]}}, instruction[31:20]}`.
 >
-> ⛔ **`SRA`/`SRAI` deliberately excluded:** these share `funct3 = 101` with `SRL`/`SRLI` and are only distinguished by `funct7`, but this design's `alu_control` doesn't check `funct7` for that case — a conscious scope decision, not an oversight. See [Design Decisions](#17--key-design-decisions).
+> ⛔ **`SRA`/`SRAI` deliberately excluded:** these share `funct3 = 101` with `SRL`/`SRLI` and are only distinguished by `funct7`, but this design's `alu_control` doesn't check `funct7` for that case — a conscious scope decision, not an oversight. See [Design Decisions](#18--key-design-decisions).
 
 ---
 
@@ -417,8 +418,6 @@ The 2:1 mux that implements the entire R-type/I-type operand-source distinction.
 
 Maps every supported `funct3` (both R-type and I-type) to the matching `alu_opcode`. Disambiguates `ADD` vs `SUB` using `funct7`. `flag = (funct3 == 3'b010)` — true only for `SLT`/`SLTI`, false for `SLTU`/`SLTIU`, letting the ALU choose signed vs. unsigned comparison for the shared `alu_opcode = 101` slot. `SRA`/`SRAI` are not distinguished from `SRL`/`SRLI` — see [Section 3](#3--instruction-encoding--r-type--i-type).
 
-**`tb_alu_control.v` — its standalone testbench:** sweeps `funct3` through all 8 values (`000`–`111`) for the R-type opcode, including both `funct7` values on the `000` case to confirm `ADD`/`SUB` disambiguation, then repeats the sweep for the I-type opcode, and finally checks an unrecognized opcode to confirm the `default` case falls back correctly.
-
 ---
 
 ### `alu.v` (module `ALU_RISCV`) — Arithmetic Logic Unit
@@ -442,8 +441,6 @@ Maps every supported `funct3` (both R-type and I-type) to the matching `alu_opco
 | `111` | SRL |
 
 All 8 opcode slots are used — `SLT` and `SLTU` share slot `101`, distinguished at compute-time by `flag` using Verilog's `$signed()` cast for the signed comparison.
-
-**`tb_alu.v` — its standalone testbench (internally `tb_ALU_RISC_V`):** drives a fixed operand pair through all 8 `alu_opcode` values with `flag = 0`, then a final case with `flag = 1` and two negative operands through the `SLT` path — checking the signed comparison against a genuinely negative-vs-negative case, not just negative-vs-positive.
 
 ---
 
@@ -476,13 +473,49 @@ Contains no logic of its own beyond instruction-field bit-slicing — purely ins
 
 ---
 
-### `tb_riscv_core.v` — Self-Checking Full-System Testbench 🔝
+## 9. 🧪 Testbenches — Self-Checking Suite & Standalone Unit Tests
 
-Instantiates `riscv_core` with all 6 ports connected. A reusable `task load_program(rst, jump, address, number, expected)` drives one instruction/action in, advances one clock edge, and automatically checks `Reg_output` against the expected value using `!==`, incrementing a running pass/fail counter. Runs the full 25-step regression suite described in [Section 6](#6--how-the-whole-cpu-works--end-to-end-walkthrough), covering all 9 ALU operations, negative numbers, signed/unsigned comparison, and the debug address-override mechanism, then prints a single automatic summary line.
+This project has **10 testbenches** — one per hardware module — but they fall into two clearly different tiers, and it's worth keeping them conceptually separate rather than treating them as a uniform pile of "test files."
+
+### Tier 1 — `tb_riscv_core.v`: the self-checking, full-system testbench 🔝
+
+This is the **only** testbench that exercises the fully assembled `riscv_core` top module, and the only one that's genuinely self-checking rather than a manually-inspected waveform dump.
+
+| Aspect | Detail |
+|---|---|
+| Instantiates | `riscv_core` with all 6 ports connected (`Reg_output, address, number, jump, rst, clk`) |
+| Mechanism | A reusable `task load_program(rst, jump, address, number, expected)` — drives one instruction/action in, advances one clock edge, and automatically checks `Reg_output` |
+| Comparison | `!==` — a 4-state comparison that catches `X`/`Z` (unintended unknown states), not just wrong numeric values |
+| Reporting | Increments a running pass/fail counter per step, prints a per-step message, and ends with a single automatic summary line (`All tests passed` or `N tests failed`) |
+| Coverage | The full 25-step regression suite — all 9 ALU operations (R-type and I-type), chained data dependencies, negative numbers, signed vs. unsigned comparison, and the debug address-override mechanism |
+
+Full details on *why* it's built this way — including the live instruction-memory write port and the freeze-and-peek debug mechanism — are in [Section 5](#5--the-self-checking-testbench-architecture). The complete step-by-step program with every expected value is in [Section 6](#6--how-the-whole-cpu-works--end-to-end-walkthrough) and [Section 10](#10--verification-program--all-25-test-steps).
+
+### Tier 2 — Standalone module testbenches: one module tested in isolation at a time
+
+Each of the other 9 modules has its own dedicated testbench that drives that module's ports directly — no `riscv_core`, no clock-driven program, just the module's own inputs and outputs checked against known-correct behavior. These are the ones you'd reach for first when tracking down a bug in one specific piece of logic, without needing to run the whole CPU to see it.
+
+| Testbench | Module tested | What it's built to verify |
+|---|---|---|
+| `tb_pc_reg.v` | `pc_reg.v` | Reset-to-zero behavior, normal `+4` increment every cycle, and the hold behavior when `jump=1` |
+| `tb_address_sel.v` | `address_sel.v` | Correct pass-through of `pc_out` when `jump=0`, and correct `(address << 2)` substitution when `jump=1` |
+| `tb_instr_mem.v` | `instr_mem.v` | The live combinational write path (`mem[address] = number` visible immediately) and correct word-index read via `pc_addr[31:2]` |
+| `tb_imm_gen.v` | `imm_gen.v` | Correct sign-extension for both positive and negative 12-bit immediates |
+| `tb_control_unit.v` | `control_unit.v` | `RegWrite`/`ALUSrc` correctness across the R-type opcode, the I-type opcode, and an unrecognized opcode |
+| `tb_register_file.v` | `register_file.v` | `x0` always reads as `0` regardless of what's written; correct write-then-read behavior for `rd != 0`; reset clears all 32 registers |
+| `tb_alu_src_mux.v` | `alu_src_mux.v` | Correct 2:1 selection between `read_data2` and `imm_out` based on `ALUsrc` |
+| `tb_alu_control.v` | `alu_control.v` | Sweeps `funct3` through all 8 values (`000`–`111`) for both the R-type and I-type opcodes, including both `funct7` values on the `000` case to confirm `ADD`/`SUB` disambiguation, plus an unrecognized-opcode case to confirm the `default` fallback |
+| `tb_alu.v` | `alu.v` (`ALU_RISCV`) | A fixed operand pair driven through all 8 `alu_opcode` values with `flag=0`, plus a final case with `flag=1` and two *negative* operands through the `SLT` path — a genuinely negative-vs-negative signed comparison, not just negative-vs-positive |
+
+> 📝 **A note on confidence level:** the `tb_alu_control.v` and `tb_alu.v` rows above are described from directly-reviewed source code. The other seven standalone testbenches follow the identical isolated-single-module testing pattern established by those two — driving the module's exact port list with a sequence of input combinations and inspecting the output — but are documented here at the level of "what this testbench is built to verify" based on the module's own contract, since covering *every* module the same rigorous way was the design intent for this tier.
+
+### Why two tiers, not one flat pile of tests
+
+Standalone tests are fast to write, fast to run, and pinpoint exactly which module misbehaves — but they can't catch integration bugs (wrong port order at instantiation, a signal wired to the wrong wire in `riscv_core`, timing assumptions that only break when modules are actually chained together). The self-checking full-system test exists specifically to catch *that* category of bug — several of the entries in [Section 15's Debugging Journey](#15--debugging-journey--bugs-found--fixed) (like Bug 7's reset-ordering issue, and Bug 11's same-cycle jump timing problem) were integration-level bugs that no single-module testbench could have caught on its own, since each individual module was behaving exactly as designed in isolation.
 
 ---
 
-## 9. 🧾 Verification Program — All 25 Test Steps
+## 10. 🧾 Verification Program — All 25 Test Steps
 
 See the full step-by-step table with expected values in [Section 6](#6--how-the-whole-cpu-works--end-to-end-walkthrough) above. In short, the program:
 
@@ -498,7 +531,7 @@ Every one of these 27 total task calls (25 numbered steps plus the opening and c
 
 ---
 
-## 10. 📥 How to Download This Project
+## 11. 📥 How to Download This Project
 
 1. Go to the repository's GitHub page.
 2. Click the green **`<> Code`** button near the top right.
@@ -514,7 +547,7 @@ cd RV32I-Single-Cycle-RISC-V-CPU
 
 ---
 
-## 11. 🪟 How to Run on Windows
+## 12. 🪟 How to Run on Windows
 
 ### Step 1 — Install VS Code
 
@@ -576,7 +609,7 @@ In the **SST** panel on the left, click `tb_riscv_core`, then double-click signa
 
 ---
 
-## 12. 🐧🍎 How to Run on macOS / Linux
+## 13. 🐧🍎 How to Run on macOS / Linux
 
 **Install (Ubuntu/Debian):**
 ```bash
@@ -598,7 +631,7 @@ gtkwave dump.vcd
 
 ---
 
-## 13. 🖥️ Sample Simulation Output
+## 14. 🖥️ Sample Simulation Output
 
 ```
 ----------------------------------------------------------------------------------------
@@ -640,7 +673,7 @@ Test 27 passed: Reg_output =           0
 
 ---
 
-## 14. 🐞 Debugging Journey — Bugs Found & Fixed
+## 15. 🐞 Debugging Journey — Bugs Found & Fixed
 
 This project wasn't written correctly on the first attempt — nothing hand-built ever is. Every module went through a write → review → fix → re-verify cycle. Documenting the real bugs is deliberate: these are exactly the mistakes anyone hand-writing Verilog is likely to make, and recognizing the *pattern* is more useful than just seeing correct code.
 
@@ -679,7 +712,7 @@ This project wasn't written correctly on the first attempt — nothing hand-buil
 
 ---
 
-## 15. 📘 Verilog Concepts Reference
+## 16. 📘 Verilog Concepts Reference
 
 ### Combinational vs. sequential logic
 
@@ -733,11 +766,11 @@ This project's self-checking testbench deliberately uses `!==`, so an unintended
 
 ---
 
-## 16. 🚧 Current Limitations & Roadmap
+## 17. 🚧 Current Limitations & Roadmap
 
 This project is **feature-complete for its intended scope**. Documented here for anyone who wants to fork and extend it:
 
-- ⛔ `SRA`/`SRAI` — **intentionally excluded**, not a missing feature (see [Design Decisions](#17--key-design-decisions))
+- ⛔ `SRA`/`SRAI` — **intentionally excluded**, not a missing feature (see [Design Decisions](#18--key-design-decisions))
 - ⛔ Real RISC-V branch/jump instructions (`BEQ`, `JAL`, etc.) — the `jump` signal in this design is a **testbench-only debug feature**, not ISA-level branch support; see [Section 5](#5--the-self-checking-testbench-architecture)
 - 🔭 `LOAD`/`STORE` support — would require a separate data memory module and `MemRead`/`MemWrite`/`MemtoReg` control signals
 - 🔭 Actual branch instructions — would require a branch comparator, PC-relative addressing, and real opcode/funct3 decoding for `BEQ`/`BNE`/etc.
@@ -748,7 +781,7 @@ The 🔭 items are **not planned** — left here only as a reference for what fu
 
 ---
 
-## 17. 🔑 Key Design Decisions
+## 18. 🔑 Key Design Decisions
 
 **Single-cycle instead of a shared-bus multi-cycle design.** Matches how RV32I's fixed-length, cleanly-fielded format is meant to be used — every instruction fully executes in one clock edge, with no bus arbitration needed.
 
@@ -768,7 +801,7 @@ The 🔭 items are **not planned** — left here only as a reference for what fu
 
 ---
 
-## 18. 📖 Glossary of Terms
+## 19. 📖 Glossary of Terms
 
 | Term | Meaning |
 |---|---|
@@ -799,7 +832,7 @@ The 🔭 items are **not planned** — left here only as a reference for what fu
 
 ---
 
-## 19. 👤 Author
+## 20. 👤 Author
 
 Built module-by-module, bug-by-bug, from a blank file to a working, self-checking RISC-V core — every line reviewed, debugged, and understood along the way rather than copy-pasted. 🛠️
 
@@ -807,5 +840,6 @@ Feel free to fork, ⭐ star, and extend this with more of the RV32I instruction 
 
 ---
 
-## 20. 📄 License
+## 21. 📄 License
+
 MIT License — free to use, modify, and distribute with attribution.
