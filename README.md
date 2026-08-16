@@ -147,7 +147,7 @@ Every instruction executes **start to finish in a single clock cycle**. Only `pc
 
 ```
 ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│      PC      │───▶│  Instr Mem   │───▶│   Decoder    │───▶│   Reg File   │───▶│     ALU      │
+│      PC      │──▶│  Instr Mem   │───▶│   Decoder    │──▶│   Reg File   │───▶│     ALU      │
 └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
                                                                                         │ write-back
                                                                     ┐───────────────────┘
