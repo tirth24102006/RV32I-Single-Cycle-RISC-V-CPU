@@ -3,7 +3,7 @@
 A minimal single-cycle 32-bit RISC-V (RV32I) CPU built from scratch in Verilog HDL, executing ADD and ADDI. Fully modular datapath — PC, instruction memory, register file, ALU, control unit, ALU control, immediate generator, and ALU-source mux — each with its own testbench, simulated in Icarus Verilog and visualized in GTKWave & Vivado. 🚀
 
 # 🧠 RV32I Single-Cycle RISC-V CPU — Self-Checking Verification Edition
-
+ 
 ### Built from scratch in Verilog HDL
 
 > ⚙️ A fully modular, single-cycle 32-bit RISC-V processor, hand-built in Verilog HDL from the ground up — implementing 9 core ALU operations from the RV32I base integer instruction set, in both R-type and I-type form. Verified by a **self-checking testbench** with a live instruction-memory interface and a debug address-override port, rather than a one-shot "load a program and eyeball the final registers" test. Simulated with Icarus Verilog, inspected in GTKWave, and synthesizable in Xilinx Vivado. 🚀
