@@ -10,7 +10,7 @@ A minimal single-cycle 32-bit RISC-V (RV32I) CPU built from scratch in Verilog H
 
 > ✅ **Status:** Feature-complete for its scope. All 9 ALU operations (R-type + I-type), the register file, the full single-cycle datapath, and a 25-step self-checking regression suite are implemented and passing. `SRA`/`SRAI`, loads/stores, real branch/jump instructions, and pipelining are deliberately out of scope for this version — see [Roadmap](#17--current-limitations--roadmap).
 
---- 
+---  
 
 ## 📑 Table of Contents
 
